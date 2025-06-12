@@ -1,0 +1,42 @@
+# MNIST数据集配置
+dataset: "mnist"
+data_dir: "data/MNIST"
+
+# 继承基础配置
+data:
+  batch_size: 128  # MNIST数据集较小，可以使用更大的batch size
+  num_workers: 4
+  image_size: 28
+  channels: 1
+  num_classes: 10
+
+model:
+  in_channels: 1
+  hidden_size: 64
+  time_embedding_size: 256
+  num_res_blocks: 2
+  attention_resolutions: [16]
+  dropout: 0.1
+  use_scale_shift_norm: true
+  num_classes: 10  # MNIST有10个类别
+
+training:
+  num_epochs: 100
+  learning_rate: 1e-4
+  beta1: 0.9
+  beta2: 0.999
+  weight_decay: 0.0
+  gradient_clip_val: 1.0
+  save_every: 10
+  eval_every: 5
+
+diffusion:
+  beta_start: 1e-4
+  beta_end: 0.02
+  num_timesteps: 1000
+  sampling_timesteps: 250
+
+logging:
+  log_dir: "results/A0_base"  # 基础模型结果目录
+  tensorboard: true
+  wandb: false 

@@ -1,0 +1,42 @@
+# QuickDraw数据集配置
+dataset: "quickdraw"
+data_dir: "data/QuickDraw"
+
+# 继承基础配置
+data:
+  batch_size: 64  # QuickDraw数据集较大，使用较小的batch size
+  num_workers: 4
+  image_size: 28
+  channels: 1
+  num_classes: 1  # 每个类别单独训练
+
+model:
+  in_channels: 1
+  hidden_size: 128  # 增加模型容量
+  time_embedding_size: 256
+  num_res_blocks: 3  # 增加残差块数量
+  attention_resolutions: [16]
+  dropout: 0.1
+  use_scale_shift_norm: true
+  num_classes: 1
+
+training:
+  num_epochs: 200  # 增加训练轮数
+  learning_rate: 5e-5  # 降低学习率
+  beta1: 0.9
+  beta2: 0.999
+  weight_decay: 1e-4  # 增加权重衰减
+  gradient_clip_val: 1.0
+  save_every: 10
+  eval_every: 5
+
+diffusion:
+  beta_start: 1e-4
+  beta_end: 0.02
+  num_timesteps: 1000
+  sampling_timesteps: 250
+
+logging:
+  log_dir: "results/A0_base_quickdraw"
+  tensorboard: true
+  wandb: false 
