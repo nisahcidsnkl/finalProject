@@ -1,0 +1,81 @@
+# 模型配置
+model:
+  name: 'diffusion'
+  image_size: 32        # 图像大小
+  channels: 1           # 图像通道数
+  num_classes: 10       # 类别数量
+  time_steps: 1000      # 扩散步数
+  beta_schedule: 'linear'  # beta调度方式：linear或cosine
+  beta_start: 0.0001    # beta起始值
+  beta_end: 0.02        # beta结束值
+  
+  # 基础网络配置
+  base_channels: 64     # 基础通道数
+  channel_multipliers: [1, 2, 4, 4]  # 通道数乘数
+  attention_resolutions: [16]  # 注意力层分辨率
+  num_res_blocks: 2     # 每个分辨率下的残差块数量
+  dropout: 0.1          # Dropout比率
+  
+  # CLIP配置（用于CLIP条件模型）
+  clip:
+    model_name: "ViT-B/32"
+    embedding_dim: 512
+    use_clip_guidance: true
+    guidance_scale: 7.5
+  
+  # CFG配置（用于CFG模型）
+  cfg:
+    guidance_scale: 7.5
+    use_cfg: true
+  
+  # 注意力配置（用于注意力模型）
+  attention:
+    num_heads: 8
+    use_attention: true
+    attention_dropout: 0.1
+
+# 训练配置
+training:
+  batch_size: 64
+  num_epochs: 100
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  gradient_clip_val: 1.0
+  ema_decay: 0.9999     # EMA衰减率
+  
+  # 优化器配置
+  optimizer:
+    type: 'adam'
+    beta1: 0.9
+    beta2: 0.999
+    eps: 1e-8
+  
+  # 学习率调度器配置
+  scheduler:
+    type: 'cosine'
+    warmup_steps: 5000
+    max_steps: 100000
+
+# 数据配置
+data:
+  dataset: 'mnist'      # 数据集名称
+  train_path: 'data/train'  # 训练数据路径
+  val_path: 'data/val'      # 验证数据路径
+  num_workers: 4            # 数据加载线程数
+  pin_memory: true         # 是否使用固定内存
+
+# 日志配置
+logging:
+  log_dir: 'logs/diffusion'  # 日志目录
+  save_interval: 5          # 保存检查点的间隔（epoch）
+  log_interval: 100         # 记录训练日志的间隔（batch）
+  tensorboard: true         # 是否使用TensorBoard
+  sample_interval: 500      # 生成样本的间隔（batch）
+
+# 评估配置
+evaluation:
+  num_samples: 1000        # 评估时生成的样本数量
+  metrics:
+    - 'fid'                # 使用FID评估
+    - 'inception_score'    # 使用Inception Score评估
+    - 'mse_diversity'      # 使用MSE多样性评估 

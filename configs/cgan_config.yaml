@@ -1,0 +1,51 @@
+# 模型配置
+model:
+  name: 'cgan'
+  num_classes: 10  # 类别数量
+  latent_dim: 100  # 潜在空间维度
+  image_size: 32   # 图像大小
+  channels: 1      # 图像通道数
+  generator:
+    hidden_dims: [256, 512, 1024]  # 生成器隐藏层维度
+    use_batch_norm: true           # 是否使用批归一化
+    use_dropout: true              # 是否使用Dropout
+    dropout_rate: 0.3              # Dropout比率
+  discriminator:
+    hidden_dims: [512, 256, 128]   # 判别器隐藏层维度
+    use_batch_norm: true           # 是否使用批归一化
+    use_dropout: true              # 是否使用Dropout
+    dropout_rate: 0.3              # Dropout比率
+
+# 训练配置
+training:
+  batch_size: 64
+  num_epochs: 100
+  learning_rate: 0.0002
+  beta1: 0.5
+  beta2: 0.999
+  label_smoothing: 0.1
+  noise_std: 0.1
+
+# 数据配置
+data:
+  dataset: 'mnist'  # 数据集名称
+  train_path: 'data/train'  # 训练数据路径
+  val_path: 'data/val'      # 验证数据路径
+  num_workers: 4            # 数据加载线程数
+  pin_memory: true         # 是否使用固定内存
+
+# 日志配置
+logging:
+  log_dir: 'logs/cgan'     # 日志目录
+  save_interval: 5         # 保存检查点的间隔（epoch）
+  log_interval: 100        # 记录训练日志的间隔（batch）
+  tensorboard: true        # 是否使用TensorBoard
+  sample_interval: 500     # 生成样本的间隔（batch）
+
+# 评估配置
+evaluation:
+  num_samples: 1000        # 评估时生成的样本数量
+  fid_batch_size: 16       # 计算FID时的批次大小
+  metrics:
+    - 'fid'                # 使用FID评估
+    - 'mse_diversity'      # 使用MSE多样性评估 

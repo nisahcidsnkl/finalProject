@@ -1,0 +1,29 @@
+# CLIP模型配置
+clip:
+  model_name: "ViT-B/32"  # CLIP模型版本
+  image_size: 224         # 输入图像大小
+  embedding_dim: 512      # 特征维度
+  temperature: 0.07       # 相似度计算温度参数
+
+# 文本编码配置
+text_encoder:
+  max_length: 77          # 最大文本长度
+  padding: True           # 是否填充
+  truncation: True        # 是否截断
+
+# 图像编码配置
+image_encoder:
+  normalize: True         # 是否标准化
+  mean: [0.48145466, 0.4578275, 0.40821073]    # 图像归一化均值
+  std: [0.26862954, 0.26130258, 0.27577711]    # 图像归一化标准差
+
+# 相似度计算配置
+similarity:
+  scale: 100.0           # 相似度缩放因子
+  use_softmax: True      # 是否使用softmax
+
+# 缓存配置
+cache:
+  enabled: True          # 是否启用缓存
+  cache_dir: "cache/clip"  # 缓存目录
+  max_size: 1000         # 最大缓存条目数 
