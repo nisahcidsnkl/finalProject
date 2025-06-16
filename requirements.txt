@@ -11,5 +11,4 @@ tensorboard>=2.4.0
 lpips>=0.1.4
 ftfy>=6.0.3
 regex>=2020.10.28
-clip @ git+https://github.com/openai/CLIP.git
 einops>=0.3.0 

@@ -17,7 +17,7 @@ from utils.data_utils import get_dataloader
 from utils.clip_utils import get_clip_processor
 
 def load_config(config_path):
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     return config
 
@@ -28,6 +28,7 @@ def train_epoch(model, dataloader, device, writer, epoch, clip_processor=None):
     
     progress_bar = tqdm(dataloader, desc=f'Epoch {epoch+1}')
     for batch_idx, (images, labels) in enumerate(progress_bar):
+        # 将数据移动到GPU
         images = images.to(device)
         labels = labels.to(device)
         
@@ -36,6 +37,7 @@ def train_epoch(model, dataloader, device, writer, epoch, clip_processor=None):
             # 对于CLIP模型，需要将标签转换为文本描述
             text_descriptions = [f"class {label.item()}" for label in labels]
             text_features = clip_processor.get_text_embeddings(text_descriptions)
+            text_features = text_features.to(device)  # 确保CLIP特征也在GPU上
             loss = model.train_step(images, text_features)
         else:
             # 对于其他模型，直接使用标签
@@ -78,24 +80,25 @@ def main():
     elif args.model_type == 'attention':
         model = FullDiffusionModel(config)
     
+    # 确保模型在GPU上
     model = model.to(device)
     
     # 创建数据加载器
     train_loader = get_dataloader(config, train=True)
     
     # 创建TensorBoard写入器
-    if config.logging.tensorboard:
-        writer = SummaryWriter(os.path.join(config.logging.log_dir, args.model_type))
+    if config['logging']['tensorboard']:
+        writer = SummaryWriter(os.path.join(config['logging']['log_dir'], args.model_type))
     else:
         writer = None
     
     # 创建检查点目录
-    checkpoint_dir = os.path.join(config.logging.log_dir, args.model_type, 'checkpoints')
+    checkpoint_dir = os.path.join(config['logging']['log_dir'], args.model_type, 'checkpoints')
     os.makedirs(checkpoint_dir, exist_ok=True)
     
     # 训练循环
-    for epoch in range(config.training.num_epochs):
-        print(f"\nEpoch {epoch+1}/{config.training.num_epochs}")
+    for epoch in range(config['training']['num_epochs']):
+        print(f"\nEpoch {epoch+1}/{config['training']['num_epochs']}")
         
         # 训练一个epoch
         if args.model_type == 'clip':
@@ -106,7 +109,7 @@ def main():
         print(f"Average Loss: {avg_loss:.4f}")
         
         # 保存检查点
-        if (epoch + 1) % config.logging.save_interval == 0:
+        if (epoch + 1) % config['logging']['save_interval'] == 0:
             checkpoint_path = os.path.join(checkpoint_dir, f'checkpoint_epoch_{epoch+1}.pt')
             torch.save({
                 'epoch': epoch + 1,

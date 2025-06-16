@@ -5,6 +5,7 @@ model:
   channels: 1           # 图像通道数
   num_classes: 10       # 类别数量
   time_steps: 1000      # 扩散步数
+  time_embedding_size: 256  # 时间嵌入维度
   beta_schedule: 'linear'  # beta调度方式：linear或cosine
   beta_start: 0.0001    # beta起始值
   beta_end: 0.02        # beta结束值
@@ -33,11 +34,13 @@ model:
     num_heads: 8
     use_attention: true
     attention_dropout: 0.1
+    time_embedding_size: 256  # 时间嵌入维度
+    label_embedding_size: 256  # 标签嵌入维度
 
 # 训练配置
 training:
   batch_size: 64
-  num_epochs: 100
+  num_epochs: 5
   learning_rate: 0.0001
   weight_decay: 0.0
   gradient_clip_val: 1.0

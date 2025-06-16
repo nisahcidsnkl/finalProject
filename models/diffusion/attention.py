@@ -5,6 +5,42 @@ from einops import rearrange, repeat
 import math
 from .base import TimeEmbedding, ResBlock
 
+
+class DownBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, num_res_blocks, num_heads, dropout):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, 3, padding=1),
+            nn.GroupNorm(8, out_channels),
+            nn.SiLU(),
+            nn.Dropout(dropout)
+        )
+    def forward(self, x, *args, **kwargs):
+        return self.block(x)
+
+class UpBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, num_res_blocks, num_heads, dropout):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.ConvTranspose2d(in_channels, out_channels, 3, padding=1),
+            nn.GroupNorm(8, out_channels),
+            nn.SiLU(),
+            nn.Dropout(dropout)
+        )
+    def forward(self, x, *args, **kwargs):
+        return self.block(x)
+
+class MiddleBlock(nn.Module):
+    def __init__(self, channels, num_heads, dropout):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Conv2d(channels, channels, 3, padding=1),
+            nn.GroupNorm(8, channels),
+            nn.SiLU(),
+            nn.Dropout(dropout)
+        )
+    def forward(self, x, *args, **kwargs):
+        return self.block(x)
 class Attention(nn.Module):
     def __init__(self, dim, num_heads=8, dropout=0.1):
         super().__init__()
@@ -48,43 +84,82 @@ class FullDiffusionModel(nn.Module):
         self.config = config
         
         # 时间嵌入
-        self.time_embedding = TimeEmbedding(config.model.time_embedding_size)
+        self.time_embedding = TimeEmbedding(config['model']['time_embedding_size'])
         
         # 标签嵌入
-        self.label_embedding = nn.Embedding(config.model.num_classes, config.model.time_embedding_size)
+        self.label_embedding = nn.Embedding(
+            config['model']['num_classes'],
+            config['model']['attention']['label_embedding_size']
+        )
         
         # 初始卷积层
-        self.init_conv = nn.Conv2d(config.model.in_channels, config.model.hidden_size, 3, padding=1)
+        self.init_conv = nn.Conv2d(
+            config['model']['channels'],
+            config['model']['base_channels'],
+            kernel_size=3,
+            padding=1
+        )
         
         # 下采样路径
         self.down_blocks = nn.ModuleList()
-        current_channels = config.model.hidden_size
-        for _ in range(3):
-            self.down_blocks.append(nn.ModuleList([
-                ResBlock(current_channels, current_channels * 2, config.model.time_embedding_size * 2),
-                AttentionBlock(current_channels * 2)
-            ]))
-            current_channels *= 2
+        in_channels = config['model']['base_channels']
+        
+        for multiplier in config['model']['channel_multipliers']:
+            out_channels = config['model']['base_channels'] * multiplier
+            self.down_blocks.append(
+                DownBlock(
+                    in_channels,
+                    out_channels,
+                    config['model']['num_res_blocks'],
+                    config['model']['attention']['num_heads'],
+                    config['model']['dropout']
+                )
+            )
+            in_channels = out_channels
         
         # 中间块
-        self.mid_block = nn.ModuleList([
-            ResBlock(current_channels, current_channels, config.model.time_embedding_size * 2),
-            AttentionBlock(current_channels),
-            ResBlock(current_channels, current_channels, config.model.time_embedding_size * 2)
-        ])
+        self.middle_block = MiddleBlock(
+            in_channels,
+            config['model']['attention']['num_heads'],
+            config['model']['dropout']
+        )
         
         # 上采样路径
         self.up_blocks = nn.ModuleList()
-        for _ in range(3):
-            self.up_blocks.append(nn.ModuleList([
-                ResBlock(current_channels, current_channels // 2, config.model.time_embedding_size * 2),
-                AttentionBlock(current_channels // 2)
-            ]))
-            current_channels //= 2
+        for multiplier in reversed(config['model']['channel_multipliers']):
+            out_channels = config['model']['base_channels'] * multiplier
+            self.up_blocks.append(
+                UpBlock(
+                    in_channels,
+                    out_channels,
+                    config['model']['num_res_blocks'],
+                    config['model']['attention']['num_heads'],
+                    config['model']['dropout']
+                )
+            )
+            in_channels = out_channels
         
-        # 输出层
-        self.final_norm = nn.GroupNorm(8, current_channels)
-        self.final_conv = nn.Conv2d(current_channels, config.model.in_channels, 3, padding=1)
+        # 最终卷积层
+        self.final_conv = nn.Conv2d(
+            in_channels,
+            config['model']['channels'],
+            kernel_size=3,
+            padding=1
+        )
+        
+        # 设置设备
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.to(self.device)
+        
+        # 初始化优化器
+        self.optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=config['training']['learning_rate'],
+            betas=(
+                config['training']['optimizer']['beta1'],
+                config['training']['optimizer']['beta2']
+            )
+        )
 
     def forward(self, x, t, labels):
         # 时间嵌入
@@ -108,9 +183,7 @@ class FullDiffusionModel(nn.Module):
             h = F.avg_pool2d(h, 2)
         
         # 中间块
-        h = self.mid_block[0](h, emb)
-        h = self.mid_block[1](h)
-        h = self.mid_block[2](h, emb)
+        h = self.middle_block(h, emb)
         
         # 上采样路径
         for (res_block, attn_block), skip in zip(self.up_blocks, reversed(down_features)):
@@ -120,8 +193,6 @@ class FullDiffusionModel(nn.Module):
             h = attn_block(h)
         
         # 输出层
-        h = self.final_norm(h)
-        h = F.silu(h)
         h = self.final_conv(h)
         
         return h
